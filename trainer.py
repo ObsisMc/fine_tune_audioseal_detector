@@ -86,8 +86,10 @@ def prepare_dataset(val_ratio=0.2, batch_size=64):
 
 
 def train(model, train_loader, val_loader, num_epochs, device):
+    start_time = time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))
+    
     criterion = nn.NLLLoss()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.0001)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.0003)
     
     
     best_valid_loss = torch.inf
@@ -149,14 +151,18 @@ def train(model, train_loader, val_loader, num_epochs, device):
                 if not os.path.exists("./checkpoints"):
                     os.makedirs("./checkpoints")
                 
-                torch.save({
-                    'epoch': epoch + 1,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': validation_loss,
-                }, f'./checkpoints/model_best_val_loss_epoch{best_epoch}_{time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))}.pth')
+                # torch.save({
+                #     'epoch': epoch + 1,
+                #     'model_state_dict': model.state_dict(),
+                #     'optimizer_state_dict': optimizer.state_dict(),
+                #     'loss': validation_loss,
+                # }, f'./checkpoints/model_best_val_loss_epoch{best_epoch}_{time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))}.pth')
+                torch.save(model.state_dict(), f'./checkpoints/model_best_val_loss_{start_time}.pth')
                 print("Saved checkpoint for epoch {} with validation loss: {:.4f}".format(epoch+1, validation_loss))
 
+            
+            
+            
 def init_model():
     detector = AudioSeal.load_detector("audioseal_detector_16bits")
     
@@ -174,7 +180,7 @@ def main():
     detector = detector.to(device)
     
     train_loader, valid_loader = prepare_dataset(val_ratio=0.2, batch_size=128)
-    train(detector, train_loader, valid_loader, num_epochs=500, device=device)
+    train(detector, train_loader, valid_loader, num_epochs=1000, device=device)
 
 
 if __name__ == "__main__":
