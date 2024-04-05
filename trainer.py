@@ -57,33 +57,70 @@ def test_dataset():
     (audio, sr), label = dataset[i]
     print(dataset.samples[dataset.permute_id[i]], audio.shape, sr, label)
 
-def prepare_dataset():
+def prepare_dataset(val_ratio=0.2, batch_size=64):
     dataset  = MyDataset("./data/train_valid", 42)
-    
     
     indices = torch.randperm(len(dataset)).tolist()
 
     # Split into training and validation indices
-    train_indices = indices[:int(len(indices) * 0.8)]
-    val_indices = indices[int(len(indices) * 0.8):]
+    train_indices = indices[:int(len(indices) * (1 - val_ratio))]
+    val_indices = indices[int(len(indices) * val_ratio):]
 
     # Create subsets
     train_dataset = Subset(dataset, train_indices)
     validation_dataset = Subset(dataset, val_indices)
 
     # Then, create DataLoaders for both sets
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)  # Shuffle for training
-    validation_loader = DataLoader(validation_dataset, batch_size=4, shuffle=False)  # No need to shuffle validation set
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)  # Shuffle for training
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)  # No need to shuffle validation set
 
-def train():
-    pass
+    return train_loader, validation_loader
 
+def train(model, train_loader, val_loader):
     criterion = nn.BCE()
     optimizer = optim.Adam()
     
+    num_epochs = 100
 
+    for epoch in range(num_epochs):
+        model.train()  # Set the model to training mode
+        running_loss = 0.0
+        
+        for inputs, labels in train_loader:
+            # Clear the gradients
+            optimizer.zero_grad()
+            
+            audios, srs = inputs
+            
+            # Forward pass
+            outputs = model(audios)  # Ensure inputs are float
+            loss = criterion(outputs.squeeze(), labels.float())  # Squeeze and float labels
+            
+            # Backward pass and optimize
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item() * audios.size(0)
+        
+        epoch_loss = running_loss / len(train_loader.dataset)
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}')
 
+        # Validation loop (optional, but recommended)
+        model.eval()  # Set the model to evaluation mode
+        with torch.no_grad():  # Turn off gradients for validation, saves memory and computations
+            validation_loss = 0.0
+            for inputs, labels in val_loader:
+                audios, srs = inputs
+                
+                outputs = model(audios)
+                loss = criterion(outputs.squeeze(), labels.float())
+                validation_loss += loss.item() * audios.size(0)
+            
+            validation_loss = validation_loss / len(val_loader.dataset)
+            print(f'Validation Loss: {validation_loss:.4f}')
 
+def init_model():
+    pass
 
 def main():
     pass
