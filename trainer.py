@@ -51,7 +51,7 @@ def setup_seed(seed):
 
 def test_dataset():
     dataset = MyDataset("./data/train_valid", 42)
-    print(dataset.permute_id)
+    print(dataset.permute_id[:10])
     
     i = 0
     (audio, sr), label = dataset[i]
@@ -120,7 +120,9 @@ def train(model, train_loader, val_loader):
             print(f'Validation Loss: {validation_loss:.4f}')
 
 def init_model():
-    pass
+    model = None
+    
+    return model
 
 def main():
     pass
