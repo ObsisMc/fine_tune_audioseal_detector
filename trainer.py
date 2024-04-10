@@ -89,7 +89,8 @@ def train(model, train_loader, val_loader, num_epochs, device):
     start_time = time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))
     
     criterion = nn.NLLLoss()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.0003)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode="min", factor=0.5, patience=5, verbose=True)
     
     
     best_valid_loss = torch.inf
@@ -144,6 +145,8 @@ def train(model, train_loader, val_loader, num_epochs, device):
             validation_loss = validation_loss / len(val_loader.dataset)
             print(f'Validation Loss: {validation_loss:.4f}')
             
+            scheduler.step(validation_loss)
+            
             if validation_loss < best_valid_loss:
                 best_valid_loss = validation_loss
                 best_epoch = epoch + 1
@@ -173,14 +176,14 @@ def init_model():
     
     return detector
 
-def main():
+def main(num_epochs=1000):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     detector = init_model()
     detector = detector.to(device)
     
     train_loader, valid_loader = prepare_dataset(val_ratio=0.2, batch_size=128)
-    train(detector, train_loader, valid_loader, num_epochs=1000, device=device)
+    train(detector, train_loader, valid_loader, num_epochs=num_epochs, device=device)
 
 
 if __name__ == "__main__":
@@ -192,5 +195,5 @@ if __name__ == "__main__":
     
     # detector = init_model()
     
-    main()
+    main(num_epochs=2500)
     
