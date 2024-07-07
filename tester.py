@@ -2,6 +2,8 @@ import torch
 import os
 import soundfile as sf
 import tqdm
+import argparse
+
 from audioseal import AudioSeal
 
 
@@ -23,9 +25,12 @@ def test_model(model_path, audio_paths, labels):
         acc.append(result < 0.5 if lb == 0 else result > 0.5)
         
         bar.update()
-        
-    print(f"Avg prob: {sum(probs) / len(probs)}")
-    print(f"Avg acc: {sum(acc) / len(acc)}")
+    
+    avg_prob = sum(probs) / len(probs)
+    avg_acc = sum(acc) / len(acc)
+    print(f"Avg prob: {avg_prob}")
+    print(f"Avg acc: {avg_acc}")
+    return avg_prob, avg_acc
     
     
 def test_ckpt(ckpt_path):
@@ -36,13 +41,33 @@ def test_ckpt(ckpt_path):
     
     
 if __name__ == "__main__":
+    def get_parser():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--dataset', required=True)
+        parser.add_argument("--ckpt_name", required=True, help="ckpt_name is in src/audioseal/cards, should be without .yaml")
+        
+        return parser
     
-    audio_paths = ["data/test/pos/audio_90.wav"]
-    audio_root = "data/test/pos/"
-    audio_paths = [os.path.join(audio_root, f) for f in os.listdir(audio_root)]
-    labels = [1] * len(audio_paths)
-    test_model("model_best_val_loss_epoch76_20240405024411", 
-               audio_paths,
-               labels)
+    parser = get_parser()
+    args = parser.parse_args()
+    
+    # roots = ["data/generated_audios_noneft_audiosealft/test_ood_prompts/neg/", "data/generated_audios_noneft_audiosealft/test_ood_prompts/pos/"]
+    roots = [f"{args.dataset}/neg/", f"{args.dataset}/pos/"]
+   
+    model_name = "model_best_val_loss_20240411022941"
+    model_name = args.ckpt_name
+    
+    accus = [] 
+    for i in range(len(roots)):
+        audio_root = roots[i]
+        audio_paths = [os.path.join(audio_root, f) for f in os.listdir(audio_root)]
+        
+        labels = [i] * len(audio_paths)
+        prob, acc = test_model(model_name, 
+                                audio_paths,
+                                labels)
+        accus.append(acc)
+    print(accus)
+    print(f"Acg acc: {sum(accus) / len(accus)}")
     
     # test_ckpt("checkpoints/model_best_val_loss_epoch89_20240405021648.pth")
