@@ -201,3 +201,22 @@ class AudioSeal:
         model = create_detector(config)
         model.load_state_dict(checkpoint)
         return model
+    
+    @staticmethod
+    def load_detector_exp(
+        model_card_or_path: str,
+        nbits: Optional[int] = None,
+    ) -> AudioSealDetector:
+        checkpoint, config = AudioSeal._parse_model(
+            model_card_or_path, AudioSealDetectorConfig, nbits=nbits,
+        )
+        model = create_detector(config)
+        # print(checkpoint)
+        
+        model.detector[1] = torch.nn.Sequential(
+            model.detector[1],
+            torch.nn.ReLU(),
+            torch.nn.Conv1d(model.detector[1].out_channels, model.detector[1].out_channels, 1)
+        )
+        model.load_state_dict(checkpoint)
+        return model

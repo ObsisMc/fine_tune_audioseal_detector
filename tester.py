@@ -7,10 +7,13 @@ import argparse
 from audioseal import AudioSeal
 
 
-def test_model(model_path, audio_paths, labels):
+def test_model(model_path, audio_paths, labels, exp=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    detector = AudioSeal.load_detector(model_path).to(device)
+    if exp:
+        detector = AudioSeal.load_detector_exp(model_path).to(device)
+    else:
+        detector = AudioSeal.load_detector(model_path).to(device)
     
     acc = []
     probs = []
@@ -45,6 +48,7 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument('--dataset', required=True)
         parser.add_argument("--ckpt_name", required=True, help="ckpt_name is in src/audioseal/cards, should be without .yaml")
+        parser.add_argument("--exp", action="store_true", required=False, default=False)
         
         return parser
     
@@ -65,7 +69,8 @@ if __name__ == "__main__":
         labels = [i] * len(audio_paths)
         prob, acc = test_model(model_name, 
                                 audio_paths,
-                                labels)
+                                labels,
+                                exp=args.exp)
         accus.append(acc)
     print(accus)
     print(f"Acg acc: {sum(accus) / len(accus)}")

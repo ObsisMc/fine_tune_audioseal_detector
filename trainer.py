@@ -8,6 +8,7 @@ import random
 import soundfile as sf
 import os
 import time
+import argparse
 
 from audioseal import AudioSeal
 
@@ -64,8 +65,8 @@ def test_dataset():
         print(dataset.samples[dataset.permute_id[i]], audio.shape, sr, label)
 
 
-def prepare_dataset(val_ratio=0.2, batch_size=64):
-    dataset  = MyDataset("./data/train_valid", 42)
+def prepare_dataset(dataset_path, val_ratio=0.2, batch_size=64):
+    dataset  = MyDataset(dataset_path, 42)
     
     indices = torch.randperm(len(dataset)).tolist()
 
@@ -89,8 +90,8 @@ def train(model, train_loader, val_loader, num_epochs, device):
     start_time = time.strftime("%Y%m%d%H%M%S",time.localtime(time.time()))
     
     criterion = nn.NLLLoss()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode="min", factor=0.5, patience=5, verbose=True)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.005)
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode="min", factor=0.5, patience=5, verbose=True)
     
     
     best_valid_loss = torch.inf
@@ -145,7 +146,7 @@ def train(model, train_loader, val_loader, num_epochs, device):
             validation_loss = validation_loss / len(val_loader.dataset)
             print(f'Validation Loss: {validation_loss:.4f}')
             
-            scheduler.step(validation_loss)
+            # scheduler.step(validation_loss)
             
             if validation_loss < best_valid_loss:
                 best_valid_loss = validation_loss
@@ -166,8 +167,16 @@ def train(model, train_loader, val_loader, num_epochs, device):
             
             
             
-def init_model():
+def init_model(exp: bool=False):
     detector = AudioSeal.load_detector("audioseal_detector_16bits")
+    
+    if exp:
+        # change last layers
+        detector.detector[1] = torch.nn.Sequential(
+                detector.detector[1],
+                torch.nn.ReLU(),
+                torch.nn.Conv1d(detector.detector[1].out_channels, detector.detector[1].out_channels, 1)
+            ) 
     
     # froze params
     for name, param in detector.named_parameters():
@@ -176,13 +185,13 @@ def init_model():
     
     return detector
 
-def main(num_epochs=1000):
+def main(dataset_path, num_epochs=2000, exp: bool=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    detector = init_model()
+    detector = init_model(exp)
     detector = detector.to(device)
     
-    train_loader, valid_loader = prepare_dataset(val_ratio=0.2, batch_size=128)
+    train_loader, valid_loader = prepare_dataset(dataset_path, val_ratio=0.2, batch_size=128)
     train(detector, train_loader, valid_loader, num_epochs=num_epochs, device=device)
 
 
@@ -195,5 +204,19 @@ if __name__ == "__main__":
     
     # detector = init_model()
     
-    main(num_epochs=2500)
+    def get_parser():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--dataset', required=True)
+        parser.add_argument("--epochs", default=1500)
+        parser.add_argument("--exp", action="store_true", required=False, default=False)
+        
+        return parser
+    
+    parser = get_parser()
+    args = parser.parse_args()
+    
+    # dataset = "data/generated_audios_noneft_audiosealft/train_valid"
+    # num_epochs = 1500
+    # exp = False
+    main(dataset_path=args.dataset, num_epochs=args.epochs, exp=args.exp)
     
